@@ -45,7 +45,7 @@ class LINE_UP_OPERATOR(Operator):
     bl_idname = "object.line_up"
     bl_label = "LineUp"
     bl_description = "Line Up all selected objects."
-    axis = "x"
+    axis : bpy.props.StringProperty(name = "axis", default= "x")
     
     @classmethod
     def poll(self, context):
@@ -55,10 +55,10 @@ class LINE_UP_OPERATOR(Operator):
         spacing = newSpacing
         
     def execute(self, context):
+        print(self.axis)
         selected_objects = self.get_selected(context)
         if not len(selected_objects):
             return {"FINISHED"}
-        print(selected_objects)
         #  Measure length
         length = self.getTotalLength(selected_objects) + spacing * (len(selected_objects) - 1)
         offset = - length / 2 + selected_objects[0].dimensions.x / 2
@@ -66,7 +66,7 @@ class LINE_UP_OPERATOR(Operator):
         spread = self.getTotalSpread(selected_objects)
         #  Place Objects
         for indx, i in enumerate(selected_objects):
-            self.placeObject(spread, offset, i)
+            self.placeObject(spread, offset, i, self.axis)
             offset += self.getObjectDimension(i) + spacing
         
         return {"FINISHED"}
@@ -92,7 +92,6 @@ class LINE_UP_OPERATOR(Operator):
         minZ = 0
         maxZ = 0
         for i in objects:
-            print(i.location)
             if i.location.x > maxX:
                 maxX = i.location.x
             if i.location.x < minX:
@@ -105,9 +104,9 @@ class LINE_UP_OPERATOR(Operator):
                 maxZ = i.location.z
             if i.location.z < minZ:
                 minZ = i.location.z
-        print("spread X - " + str(minX) + " " + str(maxX))
-        print("spread Y - " + str(minY) + " " + str(maxY))
-        print("spread Z - " + str(minZ) + " " + str(maxZ))
+        # print("spread X - " + str(minX) + " " + str(maxX))
+        # print("spread Y - " + str(minY) + " " + str(maxY))
+        # print("spread Z - " + str(minZ) + " " + str(maxZ))
         avgX = (minX - maxX) / 2
         avgY = (minY - maxY) / 2
         avgZ = (minZ - maxZ) / 2
@@ -117,8 +116,15 @@ class LINE_UP_OPERATOR(Operator):
             "z": avgZ
         }
     # Move object to provided location
-    def placeObject(self, spread, offset, object):
-        object.location = (0, offset, 0)
+    def placeObject(self, spread, offset, object, axis):
+        match axis:
+            case "x":
+                object.location = (offset, 0, 0)
+            case "y":
+                object.location = (0, offset, 0)
+            case "z":
+                object.location = (0, 0, offset)
+                
 
 class ORIENT_TO_FRONT_OPERATOR(Operator):
     bl_idname = "object.orient_all"
@@ -153,21 +159,21 @@ class LineupPanel(Panel):
         row.label(text="Line Up Objects")
         row = layout.row()
         col = row.column()
-        col.operator(LINE_UP_OPERATOR.bl_idname, icon="EVENT_X", text="")
+        col.operator(LINE_UP_OPERATOR.bl_idname, icon="EVENT_X").axis = "x"
         col = row.column()
-        col.operator(LINE_UP_OPERATOR.bl_idname, icon="EVENT_Y", text="")
+        col.operator(LINE_UP_OPERATOR.bl_idname, icon="EVENT_Y").axis = "y"
         col = row.column()
-        col.operator(LINE_UP_OPERATOR.bl_idname, icon="EVENT_Z", text="")
+        col.operator(LINE_UP_OPERATOR.bl_idname, icon="EVENT_Z").axis = "z"
         # REORIENT
         row = layout.row()
         row.label(text="Orient To Face")
         row = layout.row()
         col = row.column()
-        col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_X",  text="")
+        col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_X")
         col = row.column()
-        col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_Y",  text="")
+        col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_Y")
         col = row.column()
-        col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_Z",  text="")
+        col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_Z")
 
 
 
