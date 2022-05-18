@@ -16,8 +16,8 @@ from bpy.types import Panel
 from mathutils import Euler
 
 bl_info = {
-    "name" : "one",
-    "author" : "j",
+    "name" : "Line Up",
+    "author" : "neuralworm",
     "description" : "",
     "blender" : (2, 80, 0),
     "version" : (0, 0, 1),
@@ -29,7 +29,9 @@ bl_info = {
 
 # VARIABLES
 spacing = 1
- 
+# Props
+class OBJECT_SPREAD_PROPERTIES(bpy.types.PropertyGroup):
+    spread: bpy.props.FloatProperty(name="Object Spread", default= 1.0) 
 # DATA MODEL
 class UserObject:
     def __init__(self, name, x, y, z):
@@ -43,24 +45,28 @@ class LINE_UP_OPERATOR(Operator):
     bl_idname = "object.line_up"
     bl_label = "LineUp"
     bl_description = "Line Up all selected objects."
-   
+    axis = "x"
     
     @classmethod
     def poll(self, context):
         objects = self.get_selected(self, context)
-        return {"FINISHED"}
+        return objects is not None
     def set_spacing(self, newSpacing):
         spacing = newSpacing
         
     def execute(self, context):
         selected_objects = self.get_selected(context)
+        if not len(selected_objects):
+            return {"FINISHED"}
         print(selected_objects)
-#        Measure length
+        #  Measure length
         length = self.getTotalLength(selected_objects) + spacing * (len(selected_objects) - 1)
         offset = - length / 2 + selected_objects[0].dimensions.x / 2
-#        Place Objects
+        #  Get spread
+        spread = self.getTotalSpread(selected_objects)
+        #  Place Objects
         for indx, i in enumerate(selected_objects):
-            self.placeObject(offset, i)
+            self.placeObject(spread, offset, i)
             offset += self.getObjectDimension(i) + spacing
         
         return {"FINISHED"}
@@ -70,24 +76,56 @@ class LINE_UP_OPERATOR(Operator):
     
     def getObjectDimension(self, object):
         return object.dimensions.x
-        
+    # get total length of all objects stacked together
     def getTotalLength(self, objects):
         length = 0
         for i in objects:
             length += i.dimensions.x
         return length
-        
-    def placeObject(self, offset, object):
+    # get average location of all selected objects
+    def getTotalSpread(self, objects):
+        spread = 0
+        minX = 0
+        maxX = 0
+        minY = 0
+        maxY = 0
+        minZ = 0
+        maxZ = 0
+        for i in objects:
+            print(i.location)
+            if i.location.x > maxX:
+                maxX = i.location.x
+            if i.location.x < minX:
+                minX = i.location.x
+            if i.location.y > maxY:
+                maxY = i.location.y
+            if i.location.y < minY:
+                minY = i.location.y
+            if i.location.z > maxZ:
+                maxZ = i.location.z
+            if i.location.z < minZ:
+                minZ = i.location.z
+        print("spread X - " + str(minX) + " " + str(maxX))
+        print("spread Y - " + str(minY) + " " + str(maxY))
+        print("spread Z - " + str(minZ) + " " + str(maxZ))
+        avgX = (minX - maxX) / 2
+        avgY = (minY - maxY) / 2
+        avgZ = (minZ - maxZ) / 2
+        return {
+            "x": avgX,
+            "y": avgY,
+            "z": avgZ
+        }
+    # Move object to provided location
+    def placeObject(self, spread, offset, object):
         object.location = (0, offset, 0)
 
 class ORIENT_TO_FRONT_OPERATOR(Operator):
     bl_idname = "object.orient_all"
     bl_label = "OrientAll"
     bl_description = "Orient all objects to face forward."
-
     @classmethod
     def poll(self, context):
-      
         return {"FINISHED"}
     def execute(self, context):
         for i in context.selected_objects:
@@ -95,6 +133,9 @@ class ORIENT_TO_FRONT_OPERATOR(Operator):
         
         return {"FINISHED"}
 
+
+
+# PANEL AND UI
 class LineupPanel(Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -103,27 +144,49 @@ class LineupPanel(Panel):
     
     def draw(self, context):
         layout = self.layout
+        # SET SPACING
+        row = layout.row()
+        row.label(text="Spacing")
+        layout.prop(context.scene.spread_props, "spread")
+        # LINE UP
         row = layout.row()
         row.label(text="Line Up Objects")
         row = layout.row()
-        row.operator(LINE_UP_OPERATOR.bl_idname, text="Line Up Selected")
+        col = row.column()
+        col.operator(LINE_UP_OPERATOR.bl_idname, icon="EVENT_X", text="")
+        col = row.column()
+        col.operator(LINE_UP_OPERATOR.bl_idname, icon="EVENT_Y", text="")
+        col = row.column()
+        col.operator(LINE_UP_OPERATOR.bl_idname, icon="EVENT_Z", text="")
+        # REORIENT
         row = layout.row()
-        row.label(text="Reorient Objects")
+        row.label(text="Orient To Face")
         row = layout.row()
-        row.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, text="Reorient Selected")
+        col = row.column()
+        col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_X",  text="")
+        col = row.column()
+        col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_Y",  text="")
+        col = row.column()
+        col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_Z",  text="")
+
+
 
 
 toRegister = [
     LineupPanel,
     LINE_UP_OPERATOR,
-    ORIENT_TO_FRONT_OPERATOR
+    ORIENT_TO_FRONT_OPERATOR,
+    OBJECT_SPREAD_PROPERTIES
 ]
 def register():
     for i in toRegister:
         bpy.utils.register_class(i)
+    bpy.types.Scene.spread_props = bpy.props.PointerProperty(type = OBJECT_SPREAD_PROPERTIES)
 def unregister():
     for i in toRegister:
         bpy.utils.unregister_class(i)
+    del bpy.types.Scene.spread_props
+    
     
 if __name__ == "__main__":
     register()
