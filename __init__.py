@@ -27,8 +27,6 @@ bl_info = {
 }
 
 
-# VARIABLES
-spacing = 1
 # Props
 class OBJECT_SPREAD_PROPERTIES(bpy.types.PropertyGroup):
     spread: bpy.props.FloatProperty(name="Object Spread", default= 1.0) 
@@ -45,29 +43,27 @@ class LINE_UP_OPERATOR(Operator):
     bl_idname = "object.line_up"
     bl_label = "LineUp"
     bl_description = "Line Up all selected objects."
-    axis : bpy.props.StringProperty(name = "axis", default= "x")
-    
+    bl_options = {"REGISTER", "UNDO"}
+    axis : bpy.props.EnumProperty(name = "axis", default= "x", items = {("x", "x", "Change axis to X"), ("y", "y", "Change axis to Y"), ("z", "z", "Change axis to Z")})
+    spacing: bpy.props.FloatProperty(name = "Spacing", default = 1.0)
     @classmethod
     def poll(self, context):
         objects = self.get_selected(self, context)
         return objects is not None
-    def set_spacing(self, newSpacing):
-        spacing = newSpacing
-        
     def execute(self, context):
         print(self.axis)
         selected_objects = self.get_selected(context)
         if not len(selected_objects):
             return {"FINISHED"}
         #  Measure length
-        length = self.getTotalLength(selected_objects) + spacing * (len(selected_objects) - 1)
+        length = self.getTotalLength(selected_objects) + self.spacing * (len(selected_objects) - 1)
         offset = - length / 2 + selected_objects[0].dimensions.x / 2
         #  Get spread
         spread = self.getTotalSpread(selected_objects)
         #  Place Objects
         for indx, i in enumerate(selected_objects):
             self.placeObject(spread, offset, i, self.axis)
-            offset += self.getObjectDimension(i) + spacing
+            offset += self.getObjectDimension(i) + self.spacing
         
         return {"FINISHED"}
     
@@ -142,7 +138,7 @@ class ORIENT_TO_FRONT_OPERATOR(Operator):
 
 
 # PANEL AND UI
-class LineupPanel(Panel):
+class LINE_UP_PT_PANEL(Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_label = "Line Up"
@@ -175,11 +171,12 @@ class LineupPanel(Panel):
         col = row.column()
         col.operator(ORIENT_TO_FRONT_OPERATOR.bl_idname, icon="EVENT_Z")
 
-
+class LineUpPopup(bpy.types.Panel):
+    pass
 
 
 toRegister = [
-    LineupPanel,
+    LINE_UP_PT_PANEL,
     LINE_UP_OPERATOR,
     ORIENT_TO_FRONT_OPERATOR,
     OBJECT_SPREAD_PROPERTIES
